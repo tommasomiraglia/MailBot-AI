@@ -1,8 +1,5 @@
 package emailreader.config;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
 
@@ -14,7 +11,6 @@ public class EmailProperties {
     private String username;
     private String password;
     private String expertEmail;
-    private List<String> allowedSenders = new ArrayList<>();
 
     public String getImapHost() {
         return imapHost;
@@ -54,13 +50,5 @@ public class EmailProperties {
 
     public void setExpertEmail(String expertEmail) {
         this.expertEmail = expertEmail;
-    }
-
-    public List<String> getAllowedSenders() {
-        return allowedSenders;
-    }
-
-    public void setAllowedSenders(List<String> allowedSenders) {
-        this.allowedSenders = allowedSenders;
     }
 }
