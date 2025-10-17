@@ -53,8 +53,8 @@ public class RouteApp extends RouteBuilder {
                                 + "&mail.smtp.auth=true"
                                 + "&mail.smtp.starttls.enable=true"
                                 + "&mail.smtp.ssl.trust=*"
-                                + "&debugMode=true" // Aggiungi questo
-                                + "&mail.debug=true"; // E questo
+                                + "&debugMode=true" 
+                                + "&mail.debug=true"; 
                 from(imapUri)
                                 .routeId("OpenAIEmailResponder")
                                 .log("New email received. Subject: ${header.subject}, Sender: ${header.from}")
@@ -70,8 +70,7 @@ public class RouteApp extends RouteBuilder {
                                 .log("Email from allowed sender: ${header.OriginalFrom} - Processing")
                                 .bean(openAIResponder, "generateResponse").id("call-ai-responder")
                                 .setProperty("aiResponse", body())
-                                .removeHeaders("Camel*", "Content-Type", "Date", "Message-ID", "Mime-Version",
-                                                "Received", "Return-Path", "X-Original-To", "X-Mailer", "Original*")
+                                .removeHeaders("*", "Original*")
                                 .process(this::handleAiResponse)
                                 .choice()
                                 .when(simple("${exchangeProperty.IsEscalated} == true"))

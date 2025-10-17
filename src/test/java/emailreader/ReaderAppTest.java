@@ -1,7 +1,7 @@
 package emailreader;
 
 import org.apache.camel.CamelContext;
-//import org.apache.camel.Exchange;
+import org.apache.camel.Exchange;
 import org.apache.camel.ProducerTemplate;
 import org.apache.camel.builder.AdviceWith;
 import org.apache.camel.component.mock.MockEndpoint;
@@ -22,10 +22,12 @@ import emailreader.service.OpenAIResponder;
 import emailreader.service.EmailFilterService;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
-//import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
+
 
 @CamelSpringBootTest
 @SpringBootTest
@@ -51,10 +53,10 @@ class ReaderAppTest {
     @MockitoBean
     private EmailFilterService emailFilterService;
 
-   // private static final String CUSTOMER_EMAIL = "tommasoz2005@gmail.com";
+    private static final String CUSTOMER_EMAIL = "tommasoz2005@gmail.com";
     private static final String EXPERT_EMAIL = "expert@hln.it";
     private static final String SUPPORT_EMAIL = "support@hln.it";
-  //  private static final String ESCALATION_TOKEN = "[HLN_ESCALATION]";
+    private static final String ESCALATION_TOKEN = "[HLN_ESCALATION]";
 
     @BeforeEach
     void setup() throws Exception {
@@ -71,6 +73,8 @@ class ReaderAppTest {
     @DisplayName("Email da mittente non autorizzato viene ignorata")
     void testUnauthorizedSenderIsIgnoredRealService() throws Exception {
         final String UNAUTHORIZED_EMAIL = "nonautorizzato@example.com";
+        when(emailFilterService.isAllowedSender(UNAUTHORIZED_EMAIL)).thenReturn(false);
+
         AdviceWith.adviceWith(camelContext, "OpenAIEmailResponder", a -> {
             a.replaceFromWith("direct:start-unauthorized");
             a.interceptSendToEndpoint("smtp:*")
@@ -86,17 +90,18 @@ class ReaderAppTest {
         headers.put("subject", "Test Unauthorized");
         producerTemplate.sendBodyAndHeaders("direct:start-unauthorized", "Test body", headers);
         mockSmtp.assertIsSatisfied();
-        assert !emailFilterService.isAllowedSender(UNAUTHORIZED_EMAIL);
+        assertThat(emailFilterService.isAllowedSender(UNAUTHORIZED_EMAIL)).isFalse();
     }
-/* VANNO SISTEMATI I TEST 
+
     @Test
     @DisplayName("Email valida riceve risposta standard dall'AI - servizio reale")
     void testAllowedSenderGetsStandardReplyRealService() throws Exception {
         final String originalSubject = "Aiuto con il mio ordine";
         final String originalBody = "Ho un problema con il mio ordine #12345";
         final String aiResponse = "Grazie per averci contattato. Il tuo ordine è in elaborazione.";
-        assert emailFilterService.isAllowedSender(CUSTOMER_EMAIL);
 
+        when(emailFilterService.isAllowedSender(CUSTOMER_EMAIL)).thenReturn(true);
+        
         AdviceWith.adviceWith(camelContext, "OpenAIEmailResponder", a -> {
             a.replaceFromWith("direct:start-standard");
             a.weaveById("call-ai-responder")
@@ -137,9 +142,7 @@ class ReaderAppTest {
         final String originalBody = "Ho un problema molto complesso con il sistema che non riesco a risolvere.";
         final String aiResponseWithToken = ESCALATION_TOKEN + " Questa richiesta richiede supporto specializzato.";
         final String cleanAiResponse = "Questa richiesta richiede supporto specializzato.";
-
-        // Assicurati che CUSTOMER_EMAIL sia presente nel file whitelist.txt
-        assert emailFilterService.isAllowedSender(CUSTOMER_EMAIL);
+        when(emailFilterService.isAllowedSender(CUSTOMER_EMAIL)).thenReturn(true);
 
         AdviceWith.adviceWith(camelContext, "OpenAIEmailResponder", a -> {
             a.replaceFromWith("direct:start-escalation");
@@ -164,7 +167,13 @@ class ReaderAppTest {
 
         mockSmtp.assertIsSatisfied();
 
-        Exchange expertExchange = mockSmtp.getReceivedExchanges().get(0);
+        List<Exchange> exchanges = mockSmtp.getReceivedExchanges();
+
+        Exchange expertExchange = exchanges.stream()
+                .filter(e -> EXPERT_EMAIL.equals(e.getIn().getHeader("To")))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("Email per l'esperto non trovata"));
+
         assertThat(expertExchange.getIn().getHeader("To")).isEqualTo(EXPERT_EMAIL);
         assertThat(expertExchange.getIn().getHeader("Subject")).isEqualTo("Escalation: " + originalSubject);
         assertThat(expertExchange.getIn().getHeader("From")).isEqualTo(SUPPORT_EMAIL);
@@ -174,10 +183,14 @@ class ReaderAppTest {
                 .contains("Mittente originale: " + CUSTOMER_EMAIL)
                 .contains("Oggetto: " + originalSubject)
                 .contains(originalBody)
-                .contains(cleanAiResponse);
-        assertThat(expertBody).doesNotContain(ESCALATION_TOKEN);
+                .contains(cleanAiResponse)
+                .doesNotContain(ESCALATION_TOKEN);
 
-        Exchange customerExchange = mockSmtp.getReceivedExchanges().get(1);
+        Exchange customerExchange = exchanges.stream()
+                .filter(e -> CUSTOMER_EMAIL.equals(e.getIn().getHeader("To")))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("Email per il cliente non trovata"));
+        
         assertThat(customerExchange.getIn().getHeader("To")).isEqualTo(CUSTOMER_EMAIL);
         assertThat(customerExchange.getIn().getHeader("Subject")).isEqualTo("Re: " + originalSubject);
         assertThat(customerExchange.getIn().getHeader("From")).isEqualTo(SUPPORT_EMAIL);
@@ -185,5 +198,4 @@ class ReaderAppTest {
         assertThat(customerBody).isEqualTo(cleanAiResponse);
         assertThat(customerBody).doesNotContain(ESCALATION_TOKEN);
     }
-*/        
 }
