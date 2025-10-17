@@ -43,18 +43,18 @@ public class RouteApp extends RouteBuilder {
 
         @Override
         public void configure() {
-                String imapUri = "imap://" + emailConfig.getImapHost()
-                                + "?username=" + emailConfig.getUsername()
+                String imapUri = "imap://" + emailConfig.getImapHost() + "?username=" + emailConfig.getUsername()
                                 + "&password=" + emailConfig.getPassword()
-                                + "&unseen=true";
+                                + "&delete=false&unseen=true";
 
                 String smtpUri = "smtp://" + emailConfig.getSmtpHost()
                                 + "?username=" + emailConfig.getUsername()
                                 + "&password=" + emailConfig.getPassword()
                                 + "&mail.smtp.auth=true"
                                 + "&mail.smtp.starttls.enable=true"
-                                + "&mail.smtp.ssl.trust=*";
-
+                                + "&mail.smtp.ssl.trust=*"
+                                + "&debugMode=true" // Aggiungi questo
+                                + "&mail.debug=true"; // E questo
                 from(imapUri)
                                 .routeId("OpenAIEmailResponder")
                                 .log("New email received. Subject: ${header.subject}, Sender: ${header.from}")
@@ -90,12 +90,20 @@ public class RouteApp extends RouteBuilder {
                                 .log("Escalation email sent to: ${header.To}")
                                 .process(this::prepareCustomerNotification)
                                 .log("Sending notification email to customer: ${header.To}")
+                                .removeHeaders("Return-Path", "Received", "X-*", "DKIM-*", "Authentication-Results",
+                                                "X-Google-*", "X-Gm-*", "OriginalBody", "OriginalFrom",
+                                                "OriginalSubject",
+                                                "X-Spam-*", "X-Virus-*", "AiSuccessful")
                                 .to(smtpUri)
                                 .log("Customer notification sent to: ${header.To}");
 
                 from("direct:handleStandardReply")
                                 .routeId("StandardReplyHandler")
                                 .log("Sending standard AI reply to customer: ${header.To}")
+                                .removeHeaders("Return-Path", "Received", "X-*", "DKIM-*", "Authentication-Results",
+                                                "X-Google-*", "X-Gm-*", "OriginalBody", "OriginalFrom",
+                                                "OriginalSubject",
+                                                "X-Spam-*", "X-Virus-*", "AiSuccessful")
                                 .to(smtpUri)
                                 .log("Standard AI reply sent to: ${header.To}");
         }
@@ -151,7 +159,6 @@ public class RouteApp extends RouteBuilder {
                         final String originalSubject, final String recipient) {
                 exchange.setProperty("IsEscalated", false);
                 exchange.getIn().setHeader("To", EmailCleaner.extractEmailAddress(recipient));
-                System.out.println(EmailCleaner.extractEmailAddress(recipient));
                 exchange.getIn().setHeader("Subject", "Re: " + originalSubject);
                 exchange.getIn().setBody(aiResponse);
         }
