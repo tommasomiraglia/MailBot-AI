@@ -22,30 +22,31 @@ public class RouteApp extends RouteBuilder {
     private final EmailFilterService emailFilterService;
     private final static String TOKEN_ESCALATION = "[HLN_ESCALATION]";
 
-public RouteApp(final EmailProperties emailConfig, final AiProperties aiProperties) throws Exception {
-    this.emailConfig = emailConfig;
-    this.openAIResponder = new OpenAIResponder(aiProperties.getKey(), aiProperties.getModel());
-    Set<String> allowedSenders;
-    try (InputStream is = getClass().getClassLoader().getResourceAsStream("whitelist.txt")) {
-        if (is == null) {
-            throw new IllegalStateException("File whitelist.txt non trovato in resources");
+    public RouteApp(final EmailProperties emailConfig, final AiProperties aiProperties) throws Exception {
+        this.emailConfig = emailConfig;
+        this.openAIResponder = new OpenAIResponder(aiProperties.getKey(), aiProperties.getModel());
+        Set<String> allowedSenders;
+        try (InputStream is = getClass().getClassLoader().getResourceAsStream("whitelist.txt")) {
+            if (is == null) {
+                throw new IllegalStateException("File whitelist.txt non trovato in resources");
+            }
+            allowedSenders = new BufferedReader(new InputStreamReader(is))
+                    .lines()
+                    .map(String::trim)
+                    .filter(line -> !line.isEmpty())
+                    .map(String::toLowerCase)
+                    .collect(Collectors.toSet());
         }
-        allowedSenders = new BufferedReader(new InputStreamReader(is))
-                .lines()
-                .map(String::trim)
-                .filter(line -> !line.isEmpty())
-                .map(String::toLowerCase)
-                .collect(Collectors.toSet());
+        this.emailFilterService = new EmailFilterService(emailConfig, allowedSenders);
     }
-    this.emailFilterService = new EmailFilterService(emailConfig, allowedSenders);
-}
-
 
     @Override
     public void configure() {
-        String imapUri = "imap://" + emailConfig.getImapHost() + "?username=" + emailConfig.getUsername()
-                + "&password=" + emailConfig.getPassword()
-                + "&delete=false&unseen=true";
+String imapUri = "imap://" + emailConfig.getImapHost()
+        + "?username=" + emailConfig.getUsername()
+        + "&password=" + emailConfig.getPassword()
+        + "&unseen=true";
+
 
         String smtpUri = "smtp://" + emailConfig.getSmtpHost()
                 + "?username=" + emailConfig.getUsername()
