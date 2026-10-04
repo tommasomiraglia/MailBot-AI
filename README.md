@@ -1,72 +1,80 @@
-# Documentazione Applicazione Email-Reader
+# MailBot-AI: Email Auto-Reply Support Bot
 
-### Panoramica
-Questa applicazione Java, basata su Apache Camel e Spring Boot, funge da **SupportBot** per la gestione automatica delle email. Intercetta le email in arrivo analizzando solo quelle non lette, le filtra in base a una whitelist di mittenti autorizzati e, per quelle valide, genera una risposta utilizzando un modello di intelligenza artificiale (OpenAI). Il sistema è in grado di inviare risposte standard o di scalare le richieste complesse a un esperto, notificando il cliente.
+## Overview
 
-### Architettura e Flusso
+A Java application built with Apache Camel and Spring Boot that works as a **support bot** for automatic email handling. It monitors a mailbox and processes only unread emails. It filters them against a whitelist of authorized senders and, for valid ones, generates a reply using an AI model (OpenAI). The system can either send a standard reply or escalate complex requests to a human expert while notifying the customer.
 
-1.  **Ingresso Email (IMAP):** L'applicazione monitora una casella di posta tramite il protocollo IMAP.
-2.  **Filtro Mittenti:** Ogni email in arrivo viene controllata rispetto a una `whitelist.txt` di indirizzi email autorizzati. Le email da mittenti non autorizzati vengono ignorate.
-3.  **Elaborazione AI:** Per i mittenti autorizzati, il contenuto dell'email viene inviato a un servizio OpenAI per generare una risposta automatica.
-4.  **Gestione Risposta AI:**
-    *   Se la risposta AI contiene il token `[HLN_ESCALATION]`, la richiesta viene marcata per l'escalation.
-    *   Altrimenti, viene preparata una risposta standard per il cliente.
-5.  **Escalation:**
-    *   Un'email di escalation, contenente i dettagli originali e la risposta AI, viene inviata a un indirizzo email di "esperto" configurato.
-    *   Contemporaneamente, viene inviata una notifica al cliente originale informandolo che la sua richiesta è stata inoltrata.
-6.  **Risposta Standard (SMTP):** La risposta generata dall'AI viene inviata via email (SMTP) al mittente originale.
+Built during my internship at Halnet S.r.l.
 
-### Strumenti e Framework Utilizzati
-*   **Apache Camel:**
-*   **Spring Boot:** 
-*   **OpenAI API:** 
-*   **IMAP/SMTP:** 
-*   **Maven:** 
+## Architecture and Flow
 
-### Configurazione
+1. **Email intake (IMAP):** The application monitors a mailbox over the IMAP protocol.
+2. **Sender filter:** Every incoming email is checked against a `whitelist.txt` of authorized addresses. Emails from unauthorized senders are ignored.
+3. **AI processing:** For authorized senders, the email content is sent to the OpenAI API to generate an automatic reply.
+4. **AI response handling:**
+   - If the AI response contains the token `[HLN_ESCALATION]`, the request is flagged for escalation.
+   - Otherwise, a standard reply is prepared for the customer.
+5. **Escalation:**
+   - An escalation email, containing the original message and the AI response, is sent to a configured "expert" address.
+   - At the same time, the original sender is notified that their request has been forwarded.
+6. **Standard reply (SMTP):** The AI-generated reply is sent by email (SMTP) to the original sender.
 
-L'applicazione richiede un file `.env` nella directory radice del progetto per caricare le seguenti variabili d'ambiente:
+## Tech Stack
 
-*   `IMAP_HOST`: Host del server IMAP (es. `imap.example.com`)
-*   `SMTP_HOST`: Host del server SMTP (es. `smtp.example.com`)
-*   `EMAIL_USERNAME`: Indirizzo email della casella monitorata.
-*   `EMAIL_PASSWORD`: Password della casella email.
-*   `EXPERT_EMAIL`: Indirizzo email a cui inviare le escalation.
-*   `OPENAI_API_KEY`: Chiave API per il servizio OpenAI.
-*   `OPENAI_MODEL`: Nome del modello OpenAI da utilizzare (es. `gpt-3.5-turbo`).
+- **Apache Camel:** routing and integration of the email flow
+- **Spring Boot:** application framework and configuration
+- **OpenAI API:** reply generation and escalation decision
+- **IMAP/SMTP:** receiving and sending emails
+- **Maven:** build and dependency management
 
-Ho lasciato .env.exemple come template 
+## Configuration
 
-### File `whitelist.txt`
+The application requires a `.env` file in the project root directory with the following environment variables:
 
-Questo file deve contenere un elenco di indirizzi email o domini, uno per riga, che sono autorizzati a ricevere risposte dal bot. I mittenti non presenti in questa lista verranno ignorati. 
+- `IMAP_HOST`: IMAP server host (e.g. `imap.example.com`)
+- `SMTP_HOST`: SMTP server host (e.g. `smtp.example.com`)
+- `EMAIL_USERNAME`: Address of the monitored mailbox
+- `EMAIL_PASSWORD`: Password of the mailbox
+- `EXPERT_EMAIL`: Address that receives escalations
+- `OPENAI_API_KEY`: API key for the OpenAI service
+- `OPENAI_MODEL`: OpenAI model to use (e.g. `gpt-3.5-turbo`)
+
+A `.env.exemple` file is included as a template.
+
+### `whitelist.txt`
+
+This file contains a list of email addresses or domains, one per line, that the bot is allowed to reply to. Senders not on this list are ignored.
 
 ---
 
-### Istruzioni per l'Avvio
+## Getting Started
 
-**1. Configurazione delle Variabili d'Ambiente (.env)**
+**1. Set up the environment variables (`.env`)**
 
-**2. Avvio dell'Applicazione**
+Copy `.env.exemple` to `.env` and fill in your values.
 
-utilizza i seguenti comandi a seconda del tuo sistema operativo:
+**2. Run the application**
 
-*   **Linux/macOS:**
+Use the commands below depending on your operating system:
 
-    ```bash
-    export $(cat .env | xargs)
-    mvn spring-boot:run
-    ```
+- **Linux/macOS:**
 
-*   **Windows (PowerShell):**
+  ```bash
+  export $(cat .env | xargs)
+  mvn spring-boot:run
+  ```
 
-    ```powershell
-    Get-Content .env | ForEach-Object {
-        if ($_ -match "(.*)=(.*)") {
-            setx $($matches[1]) $($matches[2])
-        }
-    }
-    mvn spring-boot:run
-    ```
-Usa echo `$env:EMAIL_USERNAME` per verificare che le variabili siano state impostate correttamente 
-Una volta avviata, l'applicazione inizierà a monitorare la casella di posta configurata
+- **Windows (PowerShell):**
+
+  ```powershell
+  Get-Content .env | ForEach-Object {
+      if ($_ -match "(.*)=(.*)") {
+          setx $($matches[1]) $($matches[2])
+      }
+  }
+  mvn spring-boot:run
+  ```
+
+  Use `echo $env:EMAIL_USERNAME` to check that the variables were set correctly.
+
+Once started, the application begins monitoring the configured mailbox.
